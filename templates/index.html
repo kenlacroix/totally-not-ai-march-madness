@@ -808,6 +808,7 @@ function renderUpsets(upsets) {
 
 function copyPicks() {
   if (!currentData) return;
+  const btn = event.currentTarget;
   const d = currentData;
   const ff = (d.final_four || []).join(', ');
   const upsets = d.upsets.length
@@ -832,7 +833,6 @@ function copyPicks() {
   ].join('\n');
 
   navigator.clipboard.writeText(text).then(() => {
-    const btn = event.currentTarget;
     const orig = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = orig; }, 2000);
