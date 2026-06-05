@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Totally Not AI Bracket Engine™</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1e2535;
+  --border: #1e293b;
+  --orange: #f97316;
+  --orange-glow: rgba(249,115,22,0.12);
+  --green: #22c55e;
+  --green-glow: rgba(34,197,94,0.1);
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --subtle: #475569;
+  --radius: 8px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ── HEADER ──────────────────────────────────────────────── */
+header {
+  text-align: center;
+  padding: 3rem 1rem 2.5rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(to bottom, rgba(249,115,22,0.06), transparent);
+}
+
+.logo {
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--orange);
+  text-transform: uppercase;
+}
+
+.logo-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 0.4rem;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin: 1.25rem 0;
+  flex-wrap: wrap;
+}
+
+.hstat { font-size: 0.78rem; color: var(--subtle); }
+.hstat strong { color: var(--orange); }
+
+#generate-btn {
+  margin-top: 0.75rem;
+  padding: 0.9rem 2.75rem;
+  background: var(--orange);
+  color: #000;
+  font-size: 1.05rem;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+#generate-btn:hover:not(:disabled) {
+  background: #fb923c;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(249,115,22,0.35);
+}
+
+#generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.header-note {
+  margin-top: 0.6rem;
+  font-size: 0.7rem;
+  color: var(--subtle);
+}
+
+/* ── LOADING ─────────────────────────────────────────────── */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,14,26,0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+#loading.hidden { display: none; }
+
+.loading-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border: 3px solid var(--border);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--orange);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+#thought-text {
+  font-size: 0.95rem;
+  color: var(--text);
+  min-height: 1.5rem;
+  transition: opacity 0.25s;
+}
+
+.progress-track {
+  margin-top: 1.5rem;
+  background: var(--surface2);
+  border-radius: 999px;
+  height: 5px;
+  overflow: hidden;
+}
+
+#progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, var(--orange), #fb923c);
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.25s;
+}
+
+.loading-timer {
+  margin-top: 0.875rem;
+  font-size: 0.78rem;
+  color: var(--subtle);
+}
+
+#timer-display { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* ── RESULTS ─────────────────────────────────────────────── */
+#results { display: none; }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ── CHAMPION HERO ───────────────────────────────────────── */
+.champion-hero {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(249,115,22,0.08) 100%);
+  border: 1px solid rgba(249,115,22,0.25);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  margin: 2rem 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.champion-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(249,115,22,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.champion-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.champion-name {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin: 0.25rem 0;
+}
+
+.champion-pct {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.bracket-name {
+  display: inline-block;
+  margin: 1rem 0 0.25rem;
+  padding: 0.25rem 0.875rem;
+  background: var(--surface2);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.time-spent {
+  font-size: 0.78rem;
+  color: var(--subtle);
+  margin-top: 0.35rem;
+}
+
+.time-spent strong { color: var(--green); }
+
+.hero-ff {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+  align-items: center;
+}
+
+.ff-label { font-size: 0.7rem; color: var(--subtle); }
+
+.ff-team {
+  padding: 0.2rem 0.65rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.625rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.45rem 1.1rem;
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  background: transparent;
+  color: var(--muted);
+}
+
+.btn:hover {
+  background: var(--surface2);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+/* ── ROUNDS ──────────────────────────────────────────────── */
+.section { margin: 2rem 0; }
+
+.section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.875rem;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+  font-weight: 500;
+  margin-bottom: -1px;
+}
+
+.tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+
+.tab-content { display: none; padding-top: 1.5rem; }
+.tab-content.active { display: block; }
+
+.region-header {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--subtle);
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.region-header:first-child { margin-top: 0; }
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.625rem;
+}
+
+.games-grid.narrow {
+  grid-template-columns: 1fr;
+  max-width: 460px;
+}
+
+/* ── GAME CARD ───────────────────────────────────────────── */
+.game-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.12s;
+}
+
+.game-card:hover { border-color: var(--subtle); }
+
+.game-card.featured {
+  border-color: rgba(249,115,22,0.25);
+  background: linear-gradient(135deg, var(--surface), rgba(249,115,22,0.04));
+}
+
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.875rem;
+}
+
+.team-row.winner {
+  border-left: 3px solid var(--green);
+  background: var(--green-glow);
+}
+
+.game-card.featured .team-row.winner {
+  border-left-color: var(--orange);
+  background: var(--orange-glow);
+}
+
+.team-row.loser {
+  border-left: 3px solid transparent;
+  opacity: 0.45;
+}
+
+.team-seed {
+  font-size: 0.68rem;
+  color: var(--muted);
+  min-width: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.team-row.loser .team-name { font-weight: 400; }
+.game-card.featured .team-name { font-size: 0.95rem; }
+
+.team-prob {
+  font-size: 0.72rem;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.game-card.featured .team-prob { color: var(--orange); }
+
+.game-analysis {
+  padding: 0.45rem 0.875rem 0.5rem;
+  font-size: 0.72rem;
+  color: var(--subtle);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+  line-height: 1.45;
+}
+
+/* ── STATS ───────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.stat-card-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--orange);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.prob-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+
+.prob-table th {
+  color: var(--subtle);
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 0 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.prob-table th:not(:first-child) { text-align: right; }
+.prob-table td { padding: 0.375rem 0; border-bottom: 1px solid rgba(30,41,59,0.5); vertical-align: middle; }
+.prob-table td:not(:first-child) { text-align: right; color: var(--muted); font-size: 0.78rem; }
+.prob-table tbody tr:first-child td { color: var(--orange); font-weight: 700; }
+
+.upset-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.upset-item:last-child { border-bottom: none; }
+.upset-team { font-weight: 600; font-size: 0.875rem; }
+
+.upset-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+
+.no-upsets { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+/* ── FOOTER ──────────────────────────────────────────────── */
+footer {
+  padding: 2.5rem 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.committee-box {
+  display: inline-block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 2rem;
+  max-width: 520px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.85;
+  text-align: left;
+}
+
+.committee-title {
+  display: block;
+  color: var(--orange);
+  font-size: 0.67rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.footer-quote {
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: var(--subtle);
+  font-style: italic;
+}
+
+/* ── PRINT ───────────────────────────────────────────────── */
+@media print {
+  body { background: white; color: black; }
+  header .stats-bar, header .header-note, #loading,
+  .hero-actions, .tab-bar, footer { display: none !important; }
+  #results { display: block !important; }
+  .champion-hero { border: 2px solid #333; background: #f9f9f9; }
+  .champion-name, .champion-label { color: black; }
+  .bracket-name, .ff-team { background: #eee; border-color: #ccc; }
+  .game-card { border: 1px solid #ccc; background: white; page-break-inside: avoid; }
+  .team-row.winner { background: #f0fff4; border-left-color: #16a34a; }
+  .team-row.loser { opacity: 0.6; }
+  .stat-card { border: 1px solid #ccc; background: white; }
+  .tab-content { display: block !important; }
+  .section-label, .region-header { color: #555; }
+}
+
+#confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<header>
+  <div class="logo">Totally Not AI Bracket Engine&trade;</div>
+  <div class="logo-sub">v2.0 &mdash; 100% Human-Generated Picks</div>
+  <p class="tagline">Powered by intuition, gut feelings, and absolutely nothing else.</p>
+  <div class="stats-bar">
+    <span class="hstat"><strong>10,000</strong> simulations gut-checked by hand</span>
+    <span class="hstat"><strong>Live data</strong> from sports-reference.com</span>
+    <span class="hstat" id="ai-stat"><strong>0</strong> lines of AI code</span>
+  </div>
+  <button id="generate-btn" onclick="generate()">Generate My Bracket</button>
+  <p class="header-note">Results generated using 100% organic neural networks. May contain traces of statistics.</p>
+</header>
+
+<div id="loading" class="hidden">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="loading-label">Expert Analysis in Progress</div>
+    <div id="thought-text">Loading...</div>
+    <div class="progress-track"><div id="progress-bar"></div></div>
+    <div class="loading-timer">Time analyzing: <span id="timer-display">0:00</span></div>
+  </div>
+</div>
+
+<div id="results">
+  <div class="container">
+    <div id="champion-hero" class="champion-hero"></div>
+
+    <div class="section">
+      <div class="section-label">Bracket Results</div>
+      <div class="tab-bar" id="tab-bar"></div>
+      <div id="tab-contents"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Statistics</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-title">Championship Probability</div>
+          <div id="prob-report"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Pool Optimization Picks</div>
+          <div id="upset-picks"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="committee-box">
+    <span class="committee-title">Official Selection Committee Statement</span>
+    Due to recent rule changes banning AI, this bracket was generated using
+    100% human intuition and absolutely no machine assistance.<br><br>
+    Upsets selected using proprietary &ldquo;gut feeling&rdquo; technology.
+    Results may vary. Batteries not included.<br><br>
+    If this bracket wins again, we will be accepting formal apologies.
+  </div>
+  <p class="footer-quote">&ldquo;This bracket complies fully with the &lsquo;No AI&rsquo; rule by simply being better than everyone else.&rdquo;</p>
+</footer>
+
+<script>
+const THOUGHTS = {{ thoughts | tojson }};
+const SECRET = new URLSearchParams(window.location.search).get('real') || '';
+let thoughtInterval = null;
+let progressInterval = null;
+let timerInterval = null;
+let currentData = null;
+
+function generate() {
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('results').style.display = 'none';
+
+  startDeliberation();
+
+  const minWait = new Promise(r => setTimeout(r, 6500));
+  const apiCall = fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ simulations: 10000, secret: SECRET }),
+  }).then(r => {
+    if (!r.ok) throw new Error('Server error ' + r.status);
+    return r.json();
+  });
+
+  Promise.all([minWait, apiCall])
+    .then(([, data]) => {
+      stopDeliberation();
+      document.getElementById('loading').classList.add('hidden');
+      currentData = data;
+      renderResults(data);
+      document.getElementById('results').style.display = 'block';
+      launchConfetti();
+      btn.disabled = false;
+      btn.textContent = 'Regenerate (Still Not AI)';
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    })
+    .catch(err => {
+      stopDeliberation();
+      document.getElementById('loading').classList.add('hidden');
+      btn.disabled = false;
+      alert('Analysis failed: ' + err.message);
+    });
+}
+
+function startDeliberation() {
+  let i = 0;
+  const el = document.getElementById('thought-text');
+  el.style.opacity = '1';
+  el.textContent = THOUGHTS[0];
+
+  thoughtInterval = setInterval(() => {
+    el.style.opacity = '0';
+    setTimeout(() => {
+      i = (i + 1) % THOUGHTS.length;
+      el.textContent = THOUGHTS[i];
+      el.style.opacity = '1';
+    }, 220);
+  }, 950);
+
+  const bar = document.getElementById('progress-bar');
+  bar.style.width = '0%';
+  const t0 = Date.now();
+  progressInterval = setInterval(() => {
+    const pct = Math.min(94, (Date.now() - t0) / 6500 * 100);
+    bar.style.width = pct + '%';
+  }, 60);
+
+  const t1 = Date.now();
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - t1) / 1000);
+    document.getElementById('timer-display').textContent =
+      Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }, 100);
+}
+
+function stopDeliberation() {
+  clearInterval(thoughtInterval);
+  clearInterval(progressInterval);
+  clearInterval(timerInterval);
+  document.getElementById('progress-bar').style.width = '100%';
+}
+
+function renderResults(data) {
+  renderChampion(data);
+  renderTabs(data.rounds);
+  renderProbReport(data.probability_report);
+  renderUpsets(data.upsets);
+}
+
+function renderChampion(data) {
+  const ff = (data.final_four || [])
+    .map(t => `<span class="ff-team">${t}</span>`)
+    .join('');
+  const accurateBadge = data.accurate
+    ? `<span style="display:inline-block;margin-left:0.5rem;padding:0.1rem 0.5rem;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:999px;font-size:0.65rem;color:var(--green);font-weight:700;letter-spacing:1px;vertical-align:middle;">VERIFIED</span>`
+    : '';
+  document.getElementById('champion-hero').innerHTML = `
+    <div class="champion-label">Champion${accurateBadge}</div>
+    <div class="champion-name">${data.champion}</div>
+    <div class="champion-pct">Won ${data.champion_pct}% of ${data.simulations.toLocaleString()} simulations</div>
+    <div class="bracket-name">&ldquo;${data.bracket_name}&rdquo;</div>
+    <div class="time-spent">Time spent on this analysis: <strong>${data.time_spent}</strong></div>
+    ${ff ? `<div class="hero-ff"><span class="ff-label">Final Four:</span>${ff}</div>` : ''}
+    <div class="hero-actions">
+      <button class="btn" onclick="copyPicks()">Copy My Picks</button>
+      <button class="btn" onclick="window.print()">Print Bracket</button>
+    </div>
+  `;
+}
+
+function renderTabs(rounds) {
+  const tabBar = document.getElementById('tab-bar');
+  const contents = document.getElementById('tab-contents');
+  tabBar.innerHTML = '';
+  contents.innerHTML = '';
+
+  rounds.forEach((round, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = round.label;
+    btn.onclick = () => switchTab(round.label);
+    tabBar.appendChild(btn);
+
+    const div = document.createElement('div');
+    div.className = 'tab-content' + (i === 0 ? ' active' : '');
+    div.id = 'tab-' + round.label.replace(/\s/g, '-');
+    div.innerHTML = renderRound(round);
+    contents.appendChild(div);
+  });
+}
+
+function switchTab(label) {
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === label));
+  document.querySelectorAll('.tab-content').forEach(d =>
+    d.classList.toggle('active', d.id === 'tab-' + label.replace(/\s/g, '-')));
+}
+
+const GROUPED = new Set(['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8']);
+
+function renderRound(round) {
+  if (!GROUPED.has(round.label)) {
+    return `<div class="games-grid narrow">${round.games.map(g => gameCard(g, true)).join('')}</div>`;
+  }
+  const byRegion = {};
+  round.games.forEach(g => (byRegion[g.region] = byRegion[g.region] || []).push(g));
+  return Object.entries(byRegion).map(([region, games]) => `
+    <div class="region-header">${region} Region</div>
+    <div class="games-grid">${games.map(g => gameCard(g, false)).join('')}</div>
+  `).join('');
+}
+
+function gameCard(g, featured) {
+  return `
+    <div class="game-card${featured ? ' featured' : ''}">
+      <div class="team-row winner">
+        <span class="team-seed">(${g.winner_seed})</span>
+        <span class="team-name">${g.winner}</span>
+        <span class="team-prob">${g.prob}%</span>
+      </div>
+      <div class="team-row loser">
+        <span class="team-seed">(${g.loser_seed})</span>
+        <span class="team-name">${g.loser}</span>
+      </div>
+      <div class="game-analysis">&ldquo;${g.analysis}&rdquo;</div>
+    </div>`;
+}
+
+function renderProbReport(report) {
+  const rows = report.map(r => `
+    <tr>
+      <td>${r.team}</td>
+      <td>${r.champ_pct}%</td>
+      <td>${r.ff_pct}%</td>
+    </tr>`).join('');
+  document.getElementById('prob-report').innerHTML = `
+    <table class="prob-table">
+      <thead><tr><th>Team</th><th>Champ</th><th>Final 4</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderUpsets(upsets) {
+  const el = document.getElementById('upset-picks');
+  if (!upsets.length) {
+    el.innerHTML = `<p class="no-upsets">No high-value upsets detected this year.<br>
+      The model says go chalk &mdash; let the rest of your pool split the upset picks.</p>`;
+    return;
+  }
+  el.innerHTML = upsets.map(u => `
+    <div class="upset-item">
+      <div class="upset-team">(${u.seed}) ${u.team}</div>
+      <div class="upset-meta">Reaches ${u.round} in ${u.prob}% of simulations &mdash; underrepresented in most pools</div>
+    </div>`).join('');
+}
+
+function copyPicks() {
+  if (!currentData) return;
+  const d = currentData;
+  const ff = (d.final_four || []).join(', ');
+  const upsets = d.upsets.length
+    ? d.upsets.map(u => `  - (${u.seed}) ${u.team} to ${u.round}`).join('\n')
+    : '  None -- going chalk this year';
+  const text = [
+    'MY 2026 MARCH MADNESS BRACKET',
+    `"${d.bracket_name}"`,
+    '',
+    `CHAMPION: ${d.champion.toUpperCase()} (${d.champion_pct}% probability)`,
+    '',
+    `FINAL FOUR: ${ff}`,
+    '',
+    'POOL PICKS:',
+    upsets,
+    '',
+    `Time spent on this bracket: ${d.time_spent}`,
+    `Source: ${d.source}`,
+    '',
+    '-- Totally Not AI Bracket Engine(tm) v2.0',
+    '   "100% human-generated picks"',
+  ].join('\n');
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
+}
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#f97316', '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#eab308'];
+  const parts = Array.from({ length: 110 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: Math.random() * 8 + 4,
+    h: Math.random() * 4 + 2,
+    vy: Math.random() * 3 + 1.5,
+    vx: (Math.random() - 0.5) * 2,
+    rot: Math.random() * 360,
+    rs: (Math.random() - 0.5) * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    parts.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy; p.rot += p.rs;
+      if (p.y > canvas.height + 10) p.y = -10;
+    });
+    if (frame++ < 210) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
+}
+</script>
+</body>
+</html>
