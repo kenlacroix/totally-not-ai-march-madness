@@ -523,6 +523,14 @@ footer {
   font-style: italic;
 }
 
+.footer-credit {
+  margin-top: 1.25rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.footer-credit a { color: var(--orange); text-decoration: none; }
+.footer-credit a:hover { text-decoration: underline; }
+
 /* ── PRINT ───────────────────────────────────────────────── */
 @media print {
   body { background: white; color: black; }
@@ -606,6 +614,7 @@ footer {
     If this bracket wins again, we will be accepting formal apologies.
   </div>
   <p class="footer-quote">&ldquo;This bracket complies fully with the &lsquo;No AI&rsquo; rule by simply being better than everyone else.&rdquo;</p>
+  <p class="footer-credit">Hand-crafted (no algorithms were consulted) by <a href="https://kennethlacroix.me" rel="author">Kenneth&nbsp;LaCroix</a>.</p>
 </footer>
 
 <script>
