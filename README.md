@@ -147,4 +147,4 @@ If you lose, this repository does not exist.
 
 ---
 
-*Built (definitely not with AI) by [Kenneth Lacroix](https://kennethlacroix.me).*
+*Built (definitely not with AI) by [Kenneth LaCroix](https://kennethlacroix.me).*
