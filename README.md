@@ -144,3 +144,7 @@ If you lose, this repository does not exist.
 ---
 
 *"This bracket complies fully with the 'No AI' rule by simply being better than everyone else."*
+
+---
+
+*Built (definitely not with AI) by [Kenneth LaCroix](https://kennethlacroix.me).*
